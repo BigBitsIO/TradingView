@@ -1,0 +1,67 @@
+//@version=4
+
+//
+// Pine Script v4
+// @author BigBitsIO
+// Script Library: https://www.tradingview.com/u/BigBitsIO/#published-scripts
+//
+
+// study(title, shorttitle, overlay, format, precision)
+// https://www.tradingview.com/pine-script-docs/en/v4/annotations/study_annotation.html 
+study(shorttitle = "TManyMA - ST3", title="Triple Many Moving Averages", overlay=true)
+
+// MA#Period is a variable used to store the indicator lookback period.  In this case, from the input.
+// input - https://www.tradingview.com/pine-script-docs/en/v4/annotations/Script_inputs.html
+MA1Period = input(50, title="MA1 Period")
+MA1Type = input(title="MA1 Type", defval="SMA", options=["RMA", "SMA", "EMA", "WMA"])
+MA2Period = input(100, title="MA2 Period")
+MA2Type = input(title="MA2 Type", defval="SMA", options=["RMA", "SMA", "EMA", "WMA"])
+MA3Period = input(200, title="MA3 Period")
+MA3Type = input(title="MA3 Type", defval="SMA", options=["RMA", "SMA", "EMA", "WMA"])
+
+// MA# is a variable used to store the actual moving average value.
+// if statements - https://www.tradingview.com/pine-script-reference/#op_if
+// MA functions - https://www.tradingview.com/pine-script-reference/ (must search for appropriate MA)
+MA1 = if MA1Type == "SMA"
+    sma(close, MA1Period)
+else
+    if MA1Type == "EMA"
+        ema(close, MA1Period)
+    else
+        if MA1Type == "WMA"
+            wma(close, MA1Period)
+        else
+            if MA1Type == "RMA"
+                rma(close, MA1Period)
+                    
+MA2 = if MA2Type == "SMA"
+    sma(close, MA2Period)
+else
+    if MA2Type == "EMA"
+        ema(close, MA2Period)
+    else
+        if MA2Type == "WMA"
+            wma(close, MA2Period)
+        else
+            if MA2Type == "RMA"
+                rma(close, MA2Period)
+                    
+MA3 = if MA3Type == "SMA"
+    sma(close, MA3Period)
+else
+    if MA3Type == "EMA"
+        ema(close, MA3Period)
+    else
+        if MA3Type == "WMA"
+            wma(close, MA3Period)
+        else
+            if MA3Type == "RMA"
+                rma(close, MA3Period)
+
+
+
+// plot - This will draw the information on the chart
+// plot - https://www.tradingview.com/pine-script-docs/en/v4/annotations/plot_annotation.html
+plot(MA1, color=color.green, linewidth=2)
+plot(MA2, color=color.yellow, linewidth=3)
+plot(MA3, color=color.red, linewidth=4)
