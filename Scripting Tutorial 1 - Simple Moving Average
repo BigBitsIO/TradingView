@@ -1,0 +1,23 @@
+//@version=4
+
+//
+// Pine Script v4
+// @author BigBitsIO
+// Script Library: https://www.tradingview.com/u/BigBitsIO/#published-scripts
+//
+
+// study(title, shorttitle, overlay, format, precision)
+// https://www.tradingview.com/pine-script-docs/en/v4/annotations/study_annotation.html 
+study(shorttitle = "SMA - ST1", title="Simple Moving Average", overlay=true) 
+
+// MAPeriod is a variable used to store the indicator lookback period.  In this case, from the input.
+// input - https://www.tradingview.com/pine-script-docs/en/v4/annotations/Script_inputs.html
+MAPeriod = input(21, title="MA Period")
+
+// MA is a variable used to store the actual moving average value.  In this case, from the sma() built-in function
+// sma - https://www.tradingview.com/pine-script-reference/v4/#fun_sma
+MA = sma(close, MAPeriod)
+
+// plot - This will draw the information on the chart
+// plot - https://www.tradingview.com/pine-script-docs/en/v4/annotations/plot_annotation.html
+plot(MA, color=color.purple, linewidth=4)
