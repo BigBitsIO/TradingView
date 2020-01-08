@@ -1,0 +1,55 @@
+//@version=4
+
+//
+// Pine Script v4
+// @author BigBitsIO
+// Script Library: https://www.tradingview.com/u/BigBitsIO/#published-scripts
+//
+
+
+study(shorttitle = "Volume Effectiveness [BigBitsIO]", title="Volume Effectiveness [BigBitsIO]", overlay=false, precision=8) 
+
+BarsVisible = input(title="Bars Visible", type=input.bool, defval=true)
+
+SmoothPeriod = input(30, title="Smooth Period")
+SmoothMAType = input(title="Smooth MA Type", defval="HMA", options=["RMA", "SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "VWMA"])
+SmoothVisible = input(title="Smooth MA Visible", type=input.bool, defval=true)
+
+AbsoluteEffectiveness = input(title="Absolute Effectiveness", type=input.bool, defval=false)
+
+VolumePower = if(AbsoluteEffectiveness)
+    abs((((close / open) - 1) * 100)/volume)
+else
+    (((close / open) - 1) * 100)/volume
+
+ma(MAType, MASource, MAPeriod) =>
+    if MAType == "SMA"
+        sma(MASource, MAPeriod)
+    else
+        if MAType == "EMA"
+            ema(MASource, MAPeriod)
+        else
+            if MAType == "WMA"
+                wma(MASource, MAPeriod)
+            else
+                if MAType == "RMA"
+                    rma(MASource, MAPeriod)
+                else
+                    if MAType == "HMA"
+                        wma(2*wma(MASource, MAPeriod/2)-wma(MASource, MAPeriod), round(sqrt(MAPeriod)))
+                    else
+                        if MAType == "DEMA"
+                            e = ema(MASource, MAPeriod)
+                            2 * e - ema(e, MAPeriod)
+                        else
+                            if MAType == "TEMA"
+                                e = ema(MASource, MAPeriod)
+                                3 * (e - ema(e, MAPeriod)) + ema(ema(e, MAPeriod), MAPeriod)
+                            else
+                                if MAType == "VWMA"
+                                    vwma(MASource, MAPeriod)
+                                
+MA = ma(SmoothMAType, VolumePower, SmoothPeriod)
+
+plot(BarsVisible ? VolumePower : na, color=(VolumePower>=0 ? color.green : color.red), style=plot.style_columns, transp=50 )
+plot(SmoothVisible ? MA : na, color=color.yellow, style=plot.style_line)
