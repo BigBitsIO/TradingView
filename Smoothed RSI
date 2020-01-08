@@ -1,0 +1,150 @@
+//@version=4 
+
+//
+// Pine Script v4
+// @author BigBitsIO
+// Script Library: https://www.tradingview.com/u/BigBitsIO/#published-scripts
+//
+
+// study(title, shorttitle, overlay, format, precision)
+// https://www.tradingview.com/pine-script-docs/en/v4/annotations/study_annotation.html 
+study(shorttitle = "Smoothed RSI", title="Smoothed RSI", overlay=false) // Improved with HMA, DEMA and TEMA and source options for MAs
+
+// MA#Period is a variable used to store the indicator lookback period.  In this case, from the input.
+// input - https://www.tradingview.com/pine-script-docs/en/v4/annotations/Script_inputs.html
+RSIPeriod = input(14, title="RSI Period")
+RSIType = input(title="RSI Type", defval="RSI", options=["RSI"])
+RSISource = input(title="RSI Source", type=input.source, defval=close)
+RSIResolution = input(title="RSI Resolution", defval="00 Current", options=["00 Current", "01 1m", "02 3m", "03 5m", "04 15m", "05 30m", "06 45m", "07 1h", "08 2h", "09 3h", "10 4h", "11 1D", "12 1W", "13 1M"])
+RSIVisible = input(title="RSI Visible", type=input.bool, defval=true) // Will automatically hide crossBovers containing this MA
+
+SmoothedPeriod = input(17, title="Smoothed Period")
+SmoothedType = input(title="Smoothed Type", defval="DEMA", options=["RMA", "SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "VWMA"])
+SmoothedVisible = input(title="Smoothed Visible", type=input.bool, defval=true) // Will automatically hide crossBovers containing this MA
+
+SmoothedHistPeriod = input(8, title="Smoothed Histogram Period")
+SmoothedHistType = input(title="Smoothed Histogram Type", defval="DEMA", options=["RMA", "SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "VWMA"])
+SmoothedHistVisible = input(title="Smoothed Histogram Visible", type=input.bool, defval=true)
+
+OS = input(25, title="Oversold Level", maxval=100, minval=1, step=1)
+OB = input(75, title="Overbought Level", maxval=100, minval=1, step=1)
+
+
+// MA# is a variable used to store the actual moving average value.
+// if statements - https://www.tradingview.com/pine-script-reference/#op_if
+// MA functions - https://www.tradingview.com/pine-script-reference/ (must search for appropriate MA)
+// custom functions in  pine - https://www.tradingview.com/wiki/Declaring_Functions
+osc(OSCType, OSCSource, OSCPeriod) =>
+    if OSCType == "RSI"
+        rsi(OSCSource, OSCPeriod)
+
+ma(MAType, MASource, MAPeriod) =>
+    if MAType == "SMA"
+        sma(MASource, MAPeriod)
+    else
+        if MAType == "EMA"
+            ema(MASource, MAPeriod)
+        else
+            if MAType == "WMA"
+                wma(MASource, MAPeriod)
+            else
+                if MAType == "RMA"
+                    rma(MASource, MAPeriod)
+                else
+                    if MAType == "HMA"
+                        wma(2*wma(MASource, MAPeriod/2)-wma(MASource, MAPeriod), round(sqrt(MAPeriod)))
+                    else
+                        if MAType == "DEMA"
+                            e = ema(MASource, MAPeriod)
+                            2 * e - ema(e, MAPeriod)
+                        else
+                            if MAType == "TEMA"
+                                e = ema(MASource, MAPeriod)
+                                3 * (e - ema(e, MAPeriod)) + ema(ema(e, MAPeriod), MAPeriod)
+                            else
+                                if MAType == "VWMA"
+                                    vwma(MASource, MAPeriod)
+                                
+res(MAResolution) =>
+    if MAResolution == "00 Current"
+        timeframe.period
+    else
+        if MAResolution == "01 1m"
+            "1"
+        else
+            if MAResolution == "02 3m"
+                "3"
+            else
+                if MAResolution == "03 5m"
+                    "5"
+                else
+                    if MAResolution == "04 15m"
+                        "15"
+                    else
+                        if MAResolution == "05 30m"
+                            "30"
+                        else
+                            if MAResolution == "06 45m"
+                                "45"
+                            else
+                                if MAResolution == "07 1h"
+                                    "60"
+                                else
+                                    if MAResolution == "08 2h"
+                                        "120"
+                                    else
+                                        if MAResolution == "09 3h"
+                                            "180"
+                                        else
+                                            if MAResolution == "10 4h"
+                                                "240"
+                                            else
+                                                if MAResolution == "11 1D"
+                                                    "1D"
+                                                else
+                                                    if MAResolution == "12 1W"
+                                                        "1W"
+                                                    else
+                                                        if MAResolution == "13 1M"
+                                                            "1M"
+                                                            
+cid(Current, Past, TwoBack) =>
+    if Current > Past and Past < TwoBack
+        "Up"
+    else
+        if Current < Past and Past > TwoBack
+            "Down"
+        else
+            "None"
+
+RSI = security(syminfo.tickerid, res(RSIResolution), osc(RSIType, RSISource, RSIPeriod))    
+Smoothed = ma(SmoothedType, RSI, SmoothedPeriod)
+
+
+
+                    
+
+// plot - This will draw the information on the chart
+// plot - https://www.tradingview.com/pine-script-docs/en/v4/annotations/plot_annotation.html
+plot(RSIVisible ? RSI : na, color=color.blue, linewidth=1, title="RSI")
+plot(SmoothedVisible ? Smoothed : na, color=color.orange, linewidth=1, title="Smoothed")
+
+Hist = RSI - Smoothed
+plot(Hist, title="Histogram", style=plot.style_columns, color=(Hist>=0 ? color.green : color.red), transp=25 )
+
+SmoothedHist = ma(SmoothedHistType, Hist, SmoothedHistPeriod)
+plot(SmoothedHistVisible ? SmoothedHist : na, title="Smoothed Histogram", style=plot.style_line, color=color.yellow, transp=25 )
+
+SmoothedChange = cid(Smoothed, Smoothed[1], Smoothed[2])
+plotshape("Up" == SmoothedChange ? -15 : na, style=shape.arrowup, color=color.green, location=location.absolute, editable=false)
+plotshape("Down" == SmoothedChange ? 15 : na, style=shape.arrowdown, color=color.red, location=location.absolute, editable=false)
+
+OBl = hline(OB, title="Overbought", color=color.red, linewidth=1, editable=false)
+OSl = hline(OS, title="Oversold", color=color.green, linewidth=1, editable=false)
+//Midpoint = hline(((OB + OS) / 2), title="Midpoint", color=color.orange, linewidth=1)
+Max = hline(100, title="Max", color=color.red, linewidth=0, editable=false)
+Min = hline(0, title="Min", color=color.green, linewidth=0, editable=false)
+
+//fill(OSl, OBl, color=color.orange)
+fill(Min, OSl, title="Oversold Area", color=color.green, transp=90)
+fill(OBl, Max, title="Overbought Area", color=color.red, transp=90)
