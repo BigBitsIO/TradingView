@@ -1,0 +1,132 @@
+//@version=4
+
+//
+// Pine Script v4
+// @author BigBitsIO
+// Script Library: https://www.tradingview.com/u/BigBitsIO/#published-scripts
+//
+
+study(title="Fancy Moving Average [BigBitsIO]", shorttitle="Fancy Moving Average [BigBitsIO]", overlay=true)
+
+MAPeriod = input(50, title="Period", minval=1, step=1)
+MAType = input(title="Type", defval="SMA", options=["RMA", "SMA", "EMA", "WMA", "HMA", "DEMA", "TEMA", "VWMA"])
+MASource = input(title="Source", type=input.source, defval=close)
+MAResolution = input(title="Resolution", defval="00 Current", options=["00 Current", "01 1m", "02 3m", "03 5m", "04 15m", "05 30m", "06 45m", "07 1h", "08 2h", "09 3h", "10 4h", "11 1D", "12 1W", "13 1M"])
+MAVisible = input(title="Visible", type=input.bool, defval=true) // Will automatically hide crossBovers containing this MA
+
+HighlightInclusion = input(title="Highlight Inclusion", type=input.bool, defval=true)
+ShowGhostTrail = input(title="Show Inclusion Ghost Trail", type=input.bool, defval=true)
+
+ForecastBias = input(title="Forecast Bias", defval="Neutral", options=["Neutral", "Bullish", "Bearish"])
+ForecastBiasPeriod = input(14, title="Forecast Bias Period")
+ForecastBiasMagnitude = input(1, title="Forecast Bias Magnitude", minval=0.25, maxval=20, step=0.25)
+ShowForecast = input(title="Show Forecasts", type=input.bool, defval=true)
+
+// MA# is a variable used to store the actual moving average value.
+// if statements - https://www.tradingview.com/pine-script-reference/#op_if
+// MA functions - https://www.tradingview.com/pine-script-reference/ (must search for appropriate MA)
+// custom functions in  pine - https://www.tradingview.com/wiki/Declaring_Functions
+ma(MAType, MASource, MAPeriod) =>
+    if MAType == "SMA"
+        sma(MASource, MAPeriod)
+    else
+        if MAType == "EMA"
+            ema(MASource, MAPeriod)
+        else
+            if MAType == "WMA"
+                wma(MASource, MAPeriod)
+            else
+                if MAType == "RMA"
+                    rma(MASource, MAPeriod)
+                else
+                    if MAType == "HMA"
+                        wma(2*wma(MASource, MAPeriod/2)-wma(MASource, MAPeriod), round(sqrt(MAPeriod)))
+                    else
+                        if MAType == "DEMA"
+                            e = ema(MASource, MAPeriod)
+                            2 * e - ema(e, MAPeriod)
+                        else
+                            if MAType == "TEMA"
+                                e = ema(MASource, MAPeriod)
+                                3 * (e - ema(e, MAPeriod)) + ema(ema(e, MAPeriod), MAPeriod)
+                            else
+                                if MAType == "VWMA"
+                                    vwma(MASource, MAPeriod)
+                                
+res(MAResolution) =>
+    if MAResolution == "00 Current"
+        timeframe.period
+    else
+        if MAResolution == "01 1m"
+            "1"
+        else
+            if MAResolution == "02 3m"
+                "3"
+            else
+                if MAResolution == "03 5m"
+                    "5"
+                else
+                    if MAResolution == "04 15m"
+                        "15"
+                    else
+                        if MAResolution == "05 30m"
+                            "30"
+                        else
+                            if MAResolution == "06 45m"
+                                "45"
+                            else
+                                if MAResolution == "07 1h"
+                                    "60"
+                                else
+                                    if MAResolution == "08 2h"
+                                        "120"
+                                    else
+                                        if MAResolution == "09 3h"
+                                            "180"
+                                        else
+                                            if MAResolution == "10 4h"
+                                                "240"
+                                            else
+                                                if MAResolution == "11 1D"
+                                                    "1D"
+                                                else
+                                                    if MAResolution == "12 1W"
+                                                        "1W"
+                                                    else
+                                                        if MAResolution == "13 1M"
+                                                            "1M"
+
+// https://www.tradingview.com/pine-script-reference/#fun_security
+MA = security(syminfo.tickerid, res(MAResolution), ma(MAType, MASource, MAPeriod))   
+
+plot(MAVisible ? MA : na, color=color.lime, linewidth=2, title="MA", show_last= HighlightInclusion ? MAPeriod : 0)
+plot(MAVisible and HighlightInclusion and ShowGhostTrail ? MA[MAPeriod-1] : na, color=color.black, linewidth=2, title="MA Trail", offset=((MAPeriod-1)*-1), transp=10)
+
+
+// Forecasting - forcasted prices are calculated using our MAType and MASource for the MAPeriod - the last X candles.
+//              it essentially replaces the oldest X candles, with the selected source * X candles
+// Bias - We'll add an "adjustment" for each additional candle being forecasted based on ATR of the previous X candles
+// custom functions in  pine - https://www.tradingview.com/wiki/Declaring_Functions
+bias(Bias, BiasPeriod) =>
+    if Bias == "Neutral"
+        0
+    else
+        if Bias == "Bullish"
+            (atr(BiasPeriod) * ForecastBiasMagnitude)
+        else
+            if Bias == "Bearish"
+                ((atr(BiasPeriod)  * ForecastBiasMagnitude) * -1) // multiplying by -1 to make it a negative, bearish bias
+
+// Note - Can not show forecasts on different resolutions at the moment, x-axis is an issue
+Bias = bias(ForecastBias, ForecastBiasPeriod) // 14 is default atr period
+MAForecast1 = (security(syminfo.tickerid, res(MAResolution), ma(MAType, MASource, MAPeriod - 1)) * (MAPeriod - 1) + ((MASource * 1) + (Bias * 1))) / MAPeriod
+MAForecast2 = (security(syminfo.tickerid, res(MAResolution), ma(MAType, MASource, MAPeriod - 2)) * (MAPeriod - 2) + ((MASource * 2) + (Bias * 2))) / MAPeriod
+MAForecast3 = (security(syminfo.tickerid, res(MAResolution), ma(MAType, MASource, MAPeriod - 3)) * (MAPeriod - 3) + ((MASource * 3) + (Bias * 3))) / MAPeriod
+MAForecast4 = (security(syminfo.tickerid, res(MAResolution), ma(MAType, MASource, MAPeriod - 4)) * (MAPeriod - 4) + ((MASource * 4) + (Bias * 4))) / MAPeriod
+MAForecast5 = (security(syminfo.tickerid, res(MAResolution), ma(MAType, MASource, MAPeriod - 5)) * (MAPeriod - 5) + ((MASource * 5) + (Bias * 5))) / MAPeriod
+
+plot(MAResolution == "00 Current" and ShowForecast and MAVisible ? MAForecast1 : na, color=color.green, linewidth=1, style=plot.style_circles, title="MA Forecast 1", offset=1, show_last=1)
+plot(MAResolution == "00 Current" and ShowForecast and MAVisible ? MAForecast2 : na, color=color.green, linewidth=1, style=plot.style_circles, title="MA Forecast 2", offset=2, show_last=1)
+plot(MAResolution == "00 Current" and ShowForecast and MAVisible ? MAForecast3 : na, color=color.green, linewidth=1, style=plot.style_circles, title="MA Forecast 3", offset=3, show_last=1)
+plot(MAResolution == "00 Current" and ShowForecast and MAVisible ? MAForecast4 : na, color=color.green, linewidth=1, style=plot.style_circles, title="MA Forecast 4", offset=4, show_last=1)
+plot(MAResolution == "00 Current" and ShowForecast and MAVisible ? MAForecast5 : na, color=color.green, linewidth=1, style=plot.style_circles, title="MA Forecast 5", offset=5, show_last=1)
